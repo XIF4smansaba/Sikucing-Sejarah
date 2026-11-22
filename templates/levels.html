@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pilih Stage — Si Kancil 3D</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@700;800&display=swap" rel="stylesheet">
+</head>
+<body class="level-screen">
+
+    <div class="level-container">
+        <h1 class="level-title">PILIH STAGE SEJARAH</h1>
+        <p class="level-subtitle">Selesaikan 6 Pilihan Ganda & 2 Esai di tiap stage untuk meraih mahkota emas!</p>
+
+        <div class="level-track" id="levelTrack"></div>
+
+        <div class="level-info-box" id="levelInfoBox">Ketuk kotak stage untuk mulai menyeberangi sungai 3D!</div>
+
+        <div class="level-actions">
+            <a href="/" class="btn-game btn-orange">⬅ Menu Utama</a>
+            <button class="btn-game btn-reset" onclick="resetProgres()">🔄 Ulangi Progres</button>
+        </div>
+    </div>
+
+    <script>
+        const NAMA_STAGE = {
+            1: "Stage 1: Perang Aceh",
+            2: "Stage 2: Perlawanan Banten",
+            3: "Stage 3: Geger Pacinan & Diponegoro",
+            4: "Stage 4: Pergerakan Nasional"
+        };
+
+        const stageTerbuka = parseInt(localStorage.getItem('kancil_stage_terbuka') || '1');
+        const stageSelesai = JSON.parse(localStorage.getItem('kancil_stage_selesai') || '[]');
+
+        function renderPetaStage() {
+            const track = document.getElementById('levelTrack');
+            let html = '';
+            for (let i = 1; i <= 4; i++) {
+                const selesai = stageSelesai.includes(i);
+                const terkunci = i > stageTerbuka;
+                const aktif = i === stageTerbuka;
+
+                html += `
+                    <div class="level-node-wrap">
+                        <div class="crown ${selesai ? 'earned' : ''}">👑</div>
+                        <div class="level-box-outer ${aktif ? 'current-ring' : ''}">
+                            <button class="level-box ${terkunci ? 'locked' : ''}"
+                                    onclick="${terkunci ? '' : `bukaStage(${i})`}"
+                                    onmouseenter="infoStage(${i}, ${terkunci})">
+                                ${terkunci ? '🔒' : i}
+                            </button>
+                        </div>
+                        <span class="stage-mini-label">${NAMA_STAGE[i].split(': ')[1]}</span>
+                    </div>
+                `;
+                if (i < 4) {
+                    html += `<div class="level-line ${i < stageTerbuka ? 'unlocked-line' : ''}"></div>`;
+                }
+            }
+            track.innerHTML = html;
+        }
+
+        function infoStage(num, terkunci) {
+            const box = document.getElementById('levelInfoBox');
+            box.innerText = terkunci
+                ? `${NAMA_STAGE[num]} — Selesaikan Stage ${num - 1} terlebih dahulu!`
+                : `${NAMA_STAGE[num]} — Ketuk nomor ${num} untuk mulai bermain!`;
+        }
+
+        function bukaStage(num) {
+            window.location.href = `/play/${num}`;
+        }
+
+        function resetProgres() {
+            localStorage.removeItem('kancil_stage_terbuka');
+            localStorage.removeItem('kancil_stage_selesai');
+            localStorage.removeItem('kancil_koin');
+            window.location.reload();
+        }
+
+        renderPetaStage();
+    </script>
+</body>
+</html>

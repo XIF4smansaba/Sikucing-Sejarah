@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Si Kucing 3D: Jelajah Sejarah — XI F4</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@700;800&display=swap" rel="stylesheet">
+</head>
+<body class="start-screen">
+
+    <div class="start-card">
+        <div class="badge-top">KELAS XI F4 • SMA NEGERI 1 BANGKALAN</div>
+        <div class="hero-emoji">🦌 🐊 🏛️</div>
+        <h1>Si Kucing 3D:<br><span>Jelajah Sejarah</span></h1>
+        <p>Bantu Si Kucing melompati punggung buaya dengan menjawab pertanyaan Sejarah Indonesia dengan tepat!</p>
+
+        <div class="name-input-box">
+            <label for="inputNama">NAMA SISWA:</label>
+            <input type="text" id="inputNama" value="Si Kucing Cerdik" placeholder="Tulis namamu...">
+        </div>
+
+        <div class="start-btn-group">
+            <button class="btn-game btn-green big-btn" onclick="mulaiPetualangan()">▶ START PERMAINAN</button>
+            <button class="btn-game btn-orange big-btn about-btn" onclick="bukaTentang()">👥 Tentang Pembuat</button>
+        </div>
+    </div>
+
+    <!-- MODAL TENTANG PEMBUAT -->
+    <div id="modalTentang" class="modal-overlay" onclick="tutupJikaLuar(event)">
+        <div class="about-wrapper">
+            <h2 class="about-page-title">Tentang Pembuat</h2>
+
+            <div class="about-border-card">
+                <h3 class="about-card-heading">Projek Akhir Informatika</h3>
+
+                <div class="about-info-row">
+                    <span class="about-label">Tujuan:</span>
+                    <p class="about-text">Media edukasi interaktif untuk mempelajari Sejarah Indonesia secara seru melalui permainan 3D berbasis web.</p>
+                </div>
+
+                <div class="about-divider"></div>
+
+                <div class="about-members-section">
+                    <span class="about-label">Kelompok 3 (Kelas XI F4):</span>
+                    <ol class="about-member-list">
+                        <li><span>Aldi Fairuz Sholeh</span> <span class="absen-badge">05</span></li>
+                        <li><span>Rezky Sufi Hidayat</span> <span class="absen-badge">30</span></li>
+                        <li><span>Shafira Mufidah</span> <span class="absen-badge">33</span></li>
+                        <li><span>Dian Aura Prameswari</span> <span class="absen-badge">09</span></li>
+                    </ol>
+                </div>
+
+                <p class="about-footer-note">SMA Negeri 1 Bangkalan • Tahun 2026</p>
+
+                <button class="btn-game btn-green close-about-btn" onclick="tutupTentang()">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const savedName = localStorage.getItem('kancil_nama');
+        if (savedName) document.getElementById('inputNama').value = savedName;
+
+        function mulaiPetualangan() {
+            const nama = document.getElementById('inputNama').value.trim() || "Si Kancil Cerdik";
+            localStorage.setItem('kancil_nama', nama);
+            window.location.href = "/levels";
+        }
+
+        function bukaTentang() {
+            document.getElementById('modalTentang').classList.add('show');
+        }
+
+        function tutupTentang() {
+            document.getElementById('modalTentang').classList.remove('show');
+        }
+
+        function tutupJikaLuar(event) {
+            if (event.target.id === 'modalTentang') {
+                tutupTentang();
+            }
+        }
+    </script>
+</body>
+</html>

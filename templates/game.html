@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{{ stage_judul }} — Kucing Sejarah 3D</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body class="game-screen">
+
+    <!-- KANVAS THREE.JS 3D -->
+    <div id="canvas3dContainer"></div>
+
+    <!-- LAYER KONFETI MERIAH (KHUSUS ENDING STAGE 4) -->
+    <div id="confettiLayer" class="confetti-layer"></div>
+
+    <!-- LABEL OPSI MELAYANG DI ATAS BUAYA 3D -->
+    <div id="labelA" class="croc-3d-label" onclick="pilihJawabanPG(0)"><span class="opt-circle">A</span> <span id="lblTextA"></span></div>
+    <div id="labelB" class="croc-3d-label" onclick="pilihJawabanPG(1)"><span class="opt-circle">B</span> <span id="lblTextB"></span></div>
+    <div id="labelC" class="croc-3d-label" onclick="pilihJawabanPG(2)"><span class="opt-circle">C</span> <span id="lblTextC"></span></div>
+
+    <!-- TOP HUD -->
+    <div class="hud-bar" id="hudBar">
+        <div class="hud-left">
+            <button class="btn-pause" onclick="bukaPause()">⏸</button>
+            <button class="btn-pause" id="btnSound" onclick="toggleSound()" title="Suara">🔊</button>
+            <div class="hearts-box" id="heartsBox">❤️❤️❤️</div>
+            <button class="btn-buy-heart" id="btnBeliHati" onclick="beliHati()" title="Beli +1 Hati seharga 100 Koin">+❤️ 100</button>
+        </div>
+
+        <div class="progress-pill">
+            <div class="progress-labels">
+                <span>TEPI AWAL</span>
+                <span class="tahap-badge" id="tahapBadge">TAHAP 1 / 8</span>
+                <span>SEBERANG</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+            </div>
+        </div>
+
+        <div class="coin-pill">
+            <span class="coin-icon">$</span>
+            <span id="coinDisplay">0</span>
+        </div>
+    </div>
+
+    <!-- TOAST FEEDBACK -->
+    <div id="feedbackToast" class="feedback-toast"></div>
+
+    <!-- PANEL PERTANYAAN BAWAH -->
+    <div class="question-panel" id="questionPanel">
+        <div class="q-header">
+            <span class="q-badge">{{ stage_judul | upper }}</span>
+            <span class="q-hint" id="qHint">Klik Buaya 3D atau Pilih Tombol Jawaban:</span>
+        </div>
+        <h2 class="q-text" id="questionText">Memuat pertanyaan...</h2>
+
+        <!-- MODE PILIHAN GANDA (Tahap 1-6) -->
+        <div id="pgContainer" class="answer-buttons">
+            <button class="ans-btn" onclick="pilihJawabanPG(0)">
+                <span class="opt-circle">A</span> <span id="btnTextA">-</span>
+            </button>
+            <button class="ans-btn" onclick="pilihJawabanPG(1)">
+                <span class="opt-circle">B</span> <span id="btnTextB">-</span>
+            </button>
+            <button class="ans-btn" onclick="pilihJawabanPG(2)">
+                <span class="opt-circle">C</span> <span id="btnTextC">-</span>
+            </button>
+        </div>
+
+        <!-- MODE ESAI KETIK (Tahap 7-8) -->
+        <div id="esaiContainer" class="essay-box" style="display: none;">
+            <input type="text" id="inputEsai" placeholder="Ketik jawaban singkatmu di sini..." autocomplete="off">
+            <button class="btn-game btn-green" onclick="kirimJawabanEsai()">Kirim Jawaban</button>
+        </div>
+    </div>
+
+    <!-- MODAL JEDA -->
+    <div id="modalPause" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-top-icon">⏸</div>
+            <h2>Permainan Dijeda</h2>
+            <p class="modal-desc">Jawab 6 soal Pilihan Ganda dan 2 soal Esai untuk membawa kucing ke seberang sungai!</p>
+            <div class="modal-field">
+                <label>NAMA SISWA:</label>
+                <div class="readonly-name" id="pauseNama">-</div>
+            </div>
+            <div class="modal-stats-box">
+                <div><span>TOTAL KOIN</span><strong id="pauseKoin">0</strong></div>
+                <div class="divider"></div>
+                <div><span>LANGKAH SUNGAI</span><strong id="pauseLangkah" class="green-num">0 / 8</strong></div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-game btn-green" onclick="tutupPause()">Lanjutkan</button>
+                <a href="/levels" class="btn-game btn-orange">Pilih Stage</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL MENANG BIASA (STAGE 1 - 3) -->
+    <div id="modalWin" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-top-icon">🏆</div>
+            <h2>🎉 Berhasil Menyeberang!</h2>
+            <p class="modal-desc">Hebat sekali! Kamu berhasil menaklukkan seluruh pertanyaan Pilihan Ganda dan Esai di stage ini!</p>
+            <div class="modal-field">
+                <label>NAMA SISWA:</label>
+                <div class="readonly-name" id="winNama">-</div>
+            </div>
+            <div class="modal-stats-box">
+                <div><span>TOTAL KOIN</span><strong id="winKoin">0</strong></div>
+                <div class="divider"></div>
+                <div><span>LANGKAH SUNGAI</span><strong id="winLangkah" class="green-num">8 / 8</strong></div>
+            </div>
+            <div class="modal-actions">
+                <a id="btnNextStage" href="/play/{{ stage_id + 1 }}" class="btn-game btn-green">Lanjut Stage Selanjutnya ➡</a>
+                <a href="/levels" class="btn-game btn-orange">Pilih Stage</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL GRAND FINALE MERIAH (KHUSUS TAMAT STAGE 4) -->
+    <div id="modalFinale" class="modal-overlay">
+        <div class="modal-card finale-card">
+            <div class="modal-top-icon finale-icon">👑</div>
+            <div class="finale-banner">🎊 PETUALANGAN TAMAT! 🎊</div>
+            <h2>Selamat, Pahlawan Sejarah!</h2>
+            <p class="modal-desc">
+                Luar biasa, <strong id="finaleNama">-</strong>! Berkat kecerdasanmu menjawab semua tantangan dari Stage 1 sampai Stage 4, si kucing akhirnya berhasil kembali ke hutan dengan selamat! 🐱🌳✨
+            </p>
+            <div class="modal-stats-box finale-stats">
+                <div><span>TOTAL KOIN AKHIR</span><strong id="finaleKoin">0</strong></div>
+                <div class="divider"></div>
+                <div><span>MAHKOTA STAGE</span><strong class="green-num">4 / 4 👑</strong></div>
+            </div>
+            <div class="modal-actions">
+                <a href="/levels" class="btn-game btn-green">Pilih Stage</a>
+                <a href="/" class="btn-game btn-orange">Menu Utama</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL GAME OVER -->
+    <div id="modalLose" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-top-icon">🐊</div>
+            <h2>Yah, Nyawa Habis!</h2>
+            <p class="modal-desc">Jangan menyerah, ayo ulangi stage ini dan taklukkan buayanya!</p>
+            <div class="modal-actions">
+                <button class="btn-game btn-green" onclick="window.location.reload()">Main Lagi</button>
+                <a href="/levels" class="btn-game btn-orange">Pilih Stage</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STAGE_AKTIF = parseInt("{{ stage_id }}");
+        const TOTAL_TAHAP = 8;
+        const namaSiswa = localStorage.getItem('kancil_nama') || "Si Kucing Cerdik";
+        let totalKoin = parseInt(localStorage.getItem('kancil_koin') || '0');
+        let daftarSoal = [];
+        let tahapSekarang = 0;
+        let nyawa = 3;
+        let streak = 0;
+        let sedangProses = false;
+
+        document.getElementById('inputEsai').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') kirimJawabanEsai();
+        });
+
+        // =============================================================
+        // SISTEM SOUND FX (WEB AUDIO API)
+        // =============================================================
+        let soundOn = true;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function toggleSound() {
+            soundOn = !soundOn;
+            document.getElementById('btnSound').innerText = soundOn ? '🔊' : '🔇';
+        }
+
+        function mainkanNada(f1, f2, dur, tipe = 'sine', vol = 0.25, tunda = 0) {
+            if (!soundOn) return;
+            initAudio();
+            const now = audioCtx.currentTime + tunda;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = tipe;
+            osc.frequency.setValueAtTime(f1, now);
+            if (f2 !== f1) osc.frequency.exponentialRampToValueAtTime(f2, now + dur);
+            gain.gain.setValueAtTime(vol, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + dur);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + dur);
+        }
+
+        const SoundFX = {
+            lompat: () => mainkanNada(260, 620, 0.22, 'sine', 0.22),
+            beliHati: () => {
+                mainkanNada(440, 660, 0.14, 'sine', 0.25, 0);
+                mainkanNada(660, 880, 0.2, 'triangle', 0.28, 0.12);
+            },
+            benar: () => {
+                mainkanNada(523.25, 523.25, 0.12, 'triangle', 0.25, 0);
+                mainkanNada(783.99, 1046.5, 0.22, 'triangle', 0.28, 0.1);
+            },
+            salah: () => {
+                mainkanNada(190, 95, 0.3, 'sawtooth', 0.22, 0);
+                mainkanNada(130, 70, 0.25, 'square', 0.15, 0.12);
+            },
+            menang: () => [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => mainkanNada(f, f, 0.24, 'triangle', 0.28, i * 0.12)),
+            finale: () => {
+                const fanfare = [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5, 1318.5];
+                fanfare.forEach((f, i) => mainkanNada(f, f, 0.26, 'triangle', 0.3, i * 0.14));
+            },
+            kalah: () => [392, 349.23, 311.13, 261.63].forEach((f, i) => mainkanNada(f, f * 0.9, 0.25, 'sawtooth', 0.18, i * 0.16))
+        };
+
+        // =============================================================
+        // FITUR BELI HATI DENGAN KOIN
+        // =============================================================
+        async function beliHati() {
+            if (nyawa >= 3) return;
+
+            initAudio();
+            const res = await fetch('/api/beli-hati', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nyawa: nyawa, total_koin: totalKoin })
+            });
+            const data = await res.json();
+
+            if (data.batal_maks) return;
+
+            if (data.berhasil) {
+                nyawa = data.nyawa_baru;
+                totalKoin = data.koin_baru;
+                localStorage.setItem('kancil_koin', totalKoin);
+                SoundFX.beliHati();
+                tampilkanToast(data.pesan, 'toast-ok');
+                updateHUD();
+            } else {
+                SoundFX.salah();
+                tampilkanToast(data.pesan, 'toast-err');
+            }
+        }
+
+        // =============================================================
+        // GENERATOR TEKSTUR PROSEDURAL 3D
+        // =============================================================
+        function buatTekstur(jenis) {
+            const c = document.createElement('canvas');
+            c.width = 256; c.height = 256;
+            const ctx = c.getContext('2d');
+
+            if (jenis === 'air') {
+                ctx.fillStyle = '#06b6d4'; ctx.fillRect(0, 0, 256, 256);
+                ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 4;
+                for (let y = 16; y < 256; y += 32) {
+                    ctx.beginPath();
+                    for (let x = 0; x <= 256; x += 16) ctx.lineTo(x, y + Math.sin((x / 256) * Math.PI * 4) * 6);
+                    ctx.stroke();
+                }
+            } else if (jenis === 'buaya') {
+                ctx.fillStyle = '#4ade80'; ctx.fillRect(0, 0, 256, 256);
+                for (let y = 0; y < 256; y += 24) {
+                    for (let x = 0; x < 256; x += 24) {
+                        ctx.fillStyle = (x + y) % 48 === 0 ? '#22c55e' : '#16a34a';
+                        ctx.fillRect(x + 2, y + 2, 18, 18);
+                        ctx.strokeStyle = '#14532d'; ctx.strokeRect(x + 2, y + 2, 18, 18);
+                    }
+                }
+            } else if (jenis === 'bulu') {
+                ctx.fillStyle = '#f59e0b'; ctx.fillRect(0, 0, 256, 256);
+                ctx.fillStyle = '#d97706';
+                for (let y = 0; y < 256; y += 36) ctx.fillRect(0, y, 256, 12);
+            } else if (jenis === 'kayu') {
+                ctx.fillStyle = '#78350f'; ctx.fillRect(0, 0, 256, 256);
+                for (let x = 0; x < 256; x += 14) {
+                    ctx.fillStyle = x % 28 === 0 ? '#92400e' : '#451a03';
+                    ctx.fillRect(x, 0, 6, 256);
+                }
+            } else if (jenis === 'daun') {
+                ctx.fillStyle = '#15803d'; ctx.fillRect(0, 0, 256, 256);
+                for (let i = 0; i < 240; i++) {
+                    ctx.fillStyle = i % 2 === 0 ? '#22c55e' : '#14532d';
+                    ctx.beginPath(); ctx.arc(Math.random() * 256, Math.random() * 256, 8 + Math.random() * 10, 0, Math.PI * 2); ctx.fill();
+                }
+            } else if (jenis === 'rumput') {
+                ctx.fillStyle = '#65a30d'; ctx.fillRect(0, 0, 256, 256);
+                for (let i = 0; i < 300; i++) {
+                    ctx.fillStyle = i % 2 === 0 ? '#84cc16' : '#4d7c0f';
+                    ctx.fillRect(Math.random() * 256, Math.random() * 256, 4, 12);
+                }
+            }
+            const tex = new THREE.CanvasTexture(c);
+            tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+            return tex;
+        }
+
+        // =============================================================
+        // ENGINE THREE.JS 3D (RESPONSIF HP & PC)
+        // =============================================================
+        let scene, camera, renderer, kancilGroup;
+        let waterTex, crocRows = [], clouds = [];
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        let jumpState = { active: false, start: new THREE.Vector3(), end: new THREE.Vector3(), t: 0 };
+        let endingWalk = { active: false, t: 0 };
+
+        function aturKameraResponsif() {
+            const isMobilePortrait = window.innerWidth < window.innerHeight;
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.fov = isMobilePortrait ? 60 : 48;
+            camera.position.y = isMobilePortrait ? 9.5 : 7.5;
+            camera.position.z = isMobilePortrait ? 16.5 : 11.5;
+            camera.updateProjectionMatrix();
+        }
+
+        function init3D() {
+            const container = document.getElementById('canvas3dContainer');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x56ccf2);
+            scene.fog = new THREE.Fog(0x56ccf2, 26, 82);
+
+            camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 160);
+            camera.position.set(-1.8, 7.5, 11.5);
+            aturKameraResponsif();
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.72));
+            const dirLight = new THREE.DirectionalLight(0xfffbeb, 0.85);
+            dirLight.position.set(10, 18, 12);
+            scene.add(dirLight);
+
+            waterTex = buatTekstur('air'); waterTex.repeat.set(14, 3);
+            const grassTex = buatTekstur('rumput'); grassTex.repeat.set(10, 2);
+            const barkTex = buatTekstur('kayu');
+            const leafTex = buatTekstur('daun');
+            const crocTex = buatTekstur('buaya');
+            const furTex = buatTekstur('bulu');
+
+            // Air Sungai
+            const water = new THREE.Mesh(new THREE.PlaneGeometry(140, 32), new THREE.MeshLambertMaterial({ map: waterTex }));
+            water.rotation.x = -Math.PI / 2; water.position.set(24, -0.2, 0);
+            scene.add(water);
+
+            // Tepi Belakang + Pohon
+            const backBank = new THREE.Mesh(new THREE.BoxGeometry(150, 2.5, 10), new THREE.MeshLambertMaterial({ map: grassTex }));
+            backBank.position.set(28, 0.7, -9);
+            scene.add(backBank);
+
+            for (let x = -8; x <= 68; x += 5) {
+                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.55, 4.5, 8), new THREE.MeshLambertMaterial({ map: barkTex }));
+                trunk.position.set(x, 3.8, -6.5 - (x % 2));
+                scene.add(trunk);
+
+                const leaves = new THREE.Mesh(new THREE.DodecahedronGeometry(2.0, 1), new THREE.MeshLambertMaterial({ map: leafTex }));
+                leaves.position.set(x, 6.2, -6.5 - (x % 2));
+                scene.add(leaves);
+            }
+
+            // Awan 3D
+            const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            for (let i = 0; i < 9; i++) {
+                const cg = new THREE.Group();
+                const c1 = new THREE.Mesh(new THREE.SphereGeometry(1.1, 8, 8), cloudMat);
+                const c2 = new THREE.Mesh(new THREE.SphereGeometry(0.85, 8, 8), cloudMat); c2.position.set(1.0, -0.2, 0);
+                const c3 = new THREE.Mesh(new THREE.SphereGeometry(0.8, 8, 8), cloudMat); c3.position.set(-0.9, -0.2, 0);
+                cg.add(c1, c2, c3);
+                cg.position.set(-10 + i * 9, 9.5 + (i % 2), -10);
+                scene.add(cg); clouds.push(cg);
+            }
+
+            // Tepi Awal
+            const bankMat = new THREE.MeshLambertMaterial({ map: grassTex });
+            const startBank = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.6, 2.2, 8), bankMat);
+            startBank.position.set(-4.5, 0, 0); scene.add(startBank);
+
+            // Daratan Hutan Seberang (Scene Ending Stage 4)
+            const forestGround = new THREE.Mesh(new THREE.BoxGeometry(30, 2.2, 22), bankMat);
+            forestGround.position.set(52.5, 0.1, 0);
+            scene.add(forestGround);
+
+            const forestTreeCoords = [
+                [43, -3.8], [45, 3.8], [48, -3.2], [49, 3.5],
+                [52, -3.6], [53, 3.2], [56, -2.8], [56, 2.8],
+                [60, -2.0], [60, 2.0], [62, 0]
+            ];
+            forestTreeCoords.forEach(([tx, tz]) => {
+                const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.52, 4.2, 8), new THREE.MeshLambertMaterial({ map: barkTex }));
+                tr.position.set(tx, 3.1, tz);
+                scene.add(tr);
+
+                const lf = new THREE.Mesh(new THREE.DodecahedronGeometry(2.1, 1), new THREE.MeshLambertMaterial({ map: leafTex }));
+                lf.position.set(tx, 5.6, tz);
+                scene.add(lf);
+            });
+
+            // 8 Baris x 3 Buaya 3D
+            const zLanes = [-2.5, 0.3, 3.1];
+            for (let row = 0; row < TOTAL_TAHAP; row++) {
+                let rowArr = [];
+                const xPos = 1.5 + row * 4.7;
+                for (let col = 0; col < 3; col++) {
+                    const croc = buatBuaya3D(row, col, crocTex);
+                    croc.position.set(xPos, 0.1, zLanes[col]);
+                    scene.add(croc);
+                    rowArr.push(croc);
+                }
+                crocRows.push(rowArr);
+            }
+
+            kancilGroup = buatKarakter3D(furTex);
+            kancilGroup.position.set(-4.0, 1.3, 0);
+            scene.add(kancilGroup);
+
+            renderer.domElement.addEventListener('pointerdown', onCanvasClick);
+            window.addEventListener('resize', onWindowResize);
+            animate3D();
+        }
+
+        function buatKarakter3D(furTex) {
+            const g = new THREE.Group();
+            const bodyMat = new THREE.MeshLambertMaterial({ map: furTex });
+            const whiteMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            const darkMat = new THREE.MeshLambertMaterial({ color: 0x1e293b });
+
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.85, 0.75), bodyMat); body.position.y = 0.55; g.add(body);
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.7, 0.7), bodyMat); head.position.set(0.55, 1.15, 0); g.add(head);
+            const ear1 = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.45, 4), bodyMat); ear1.position.set(0.45, 1.65, -0.22);
+            const ear2 = ear1.clone(); ear2.position.z = 0.22; g.add(ear1, ear2);
+            const tail = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.16, 0.16), bodyMat); tail.position.set(-0.68, 0.85, 0); tail.rotation.z = 0.5; g.add(tail);
+            const eye1 = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 8), whiteMat); eye1.position.set(0.86, 1.24, 0.22);
+            const pupil1 = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 8), darkMat); pupil1.position.set(0.93, 1.24, 0.24);
+            g.add(eye1, pupil1);
+
+            for (let lx of [-0.35, 0.35]) {
+                for (let lz of [-0.22, 0.22]) {
+                    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.45, 0.2), bodyMat);
+                    leg.position.set(lx, 0.15, lz); g.add(leg);
+                }
+            }
+            return g;
+        }
+
+        function buatBuaya3D(row, col, crocTex) {
+            const g = new THREE.Group();
+            g.userData = { row, col, isCroc: true, shake: 0 };
+
+            const crocMat = new THREE.MeshLambertMaterial({ map: crocTex });
+            const darkGreen = new THREE.MeshLambertMaterial({ color: 0x14532d });
+            const yellowMat = new THREE.MeshLambertMaterial({ color: 0xfacc15 });
+
+            const ripple = new THREE.Mesh(
+                new THREE.RingGeometry(1.1, 1.48, 16),
+                new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.65 })
+            );
+            ripple.rotation.x = -Math.PI / 2; ripple.position.y = -0.18; g.add(ripple);
+
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.45, 1.0), crocMat);
+            body.position.y = 0.15; body.userData = g.userData; g.add(body);
+
+            const belly = new THREE.Mesh(new THREE.BoxGeometry(2.42, 0.16, 1.02), yellowMat);
+            belly.position.y = -0.08; g.add(belly);
+
+            const tail = new THREE.Mesh(new THREE.ConeGeometry(0.4, 1.1, 4), crocMat);
+            tail.rotation.z = -Math.PI / 2; tail.position.set(1.65, 0.1, 0); g.add(tail);
+
+            for (let ez of [-0.26, 0.26]) {
+                const eye = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), darkGreen);
+                eye.position.set(-0.75, 0.45, ez); g.add(eye);
+            }
+            for (let sx = -0.2; sx <= 0.9; sx += 0.35) {
+                const spike = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.25, 4), darkGreen);
+                spike.position.set(sx, 0.48, 0); g.add(spike);
+            }
+            return g;
+        }
+
+        function onCanvasClick(event) {
+            if (sedangProses || tahapSekarang >= TOTAL_TAHAP) return;
+            if (daftarSoal[tahapSekarang] && daftarSoal[tahapSekarang].tipe !== 'pg') return;
+
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(crocRows[tahapSekarang], true);
+            if (hits.length > 0) {
+                let obj = hits[0].object;
+                while (obj && !obj.userData.isCroc) obj = obj.parent;
+                if (obj && obj.userData.row === tahapSekarang) pilihJawabanPG(obj.userData.col);
+            }
+        }
+
+        function onWindowResize() {
+            aturKameraResponsif();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function lompatKancilKe(targetVec) {
+            SoundFX.lompat();
+            jumpState.active = true;
+            jumpState.start.copy(kancilGroup.position);
+            jumpState.end.copy(targetVec);
+            jumpState.t = 0;
+        }
+
+        function updateLabels3D() {
+            const ids = ['labelA', 'labelB', 'labelC'];
+            const soal = daftarSoal[tahapSekarang];
+            if (tahapSekarang >= TOTAL_TAHAP || !soal || soal.tipe !== 'pg') {
+                ids.forEach(id => document.getElementById(id).style.display = 'none');
+                return;
+            }
+            crocRows[tahapSekarang].forEach((croc, idx) => {
+                const el = document.getElementById(ids[idx]);
+                const pos = new THREE.Vector3(croc.position.x, croc.position.y + 1.25, croc.position.z);
+                pos.project(camera);
+                el.style.display = 'flex';
+                el.style.left = ((pos.x * 0.5 + 0.5) * window.innerWidth) + 'px';
+                el.style.top = ((-pos.y * 0.5 + 0.5) * window.innerHeight) + 'px';
+            });
+        }
+
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+            const time = Date.now() * 0.003;
+
+            if (waterTex) waterTex.offset.x += 0.003;
+            clouds.forEach(c => { c.position.x += 0.008; if (c.position.x > 70) c.position.x = -12; });
+
+            crocRows.forEach((row, rIdx) => {
+                row.forEach((croc, cIdx) => {
+                    croc.position.y = 0.05 + Math.sin(time + rIdx + cIdx) * 0.07;
+                    if (croc.userData.shake > 0) {
+                        croc.rotation.z = Math.sin(time * 25) * 0.25;
+                        croc.userData.shake -= 0.05;
+                    } else {
+                        croc.rotation.z = 0;
+                    }
+                });
+            });
+
+            if (jumpState.active) {
+                jumpState.t += 0.045;
+                if (jumpState.t >= 1) {
+                    kancilGroup.position.copy(jumpState.end);
+                    jumpState.active = false;
+                } else {
+                    kancilGroup.position.lerpVectors(jumpState.start, jumpState.end, jumpState.t);
+                    kancilGroup.position.y += Math.sin(jumpState.t * Math.PI) * 2.4;
+                }
+            }
+
+            // ANIMASI ENDING STAGE 4: Kucing berjalan riang masuk ke hutan
+            if (endingWalk.active) {
+                endingWalk.t += 0.08;
+                if (kancilGroup.position.x < 57.5) {
+                    kancilGroup.position.x += 0.085;
+                    kancilGroup.position.y = 1.25 + Math.abs(Math.sin(endingWalk.t * 2)) * 0.35;
+                    kancilGroup.rotation.z = Math.sin(endingWalk.t * 2) * 0.08;
+                }
+            }
+
+            // Kamera responsif (menggeser scene ke atas saat di HP portrait agar tidak ketutup panel soal)
+            const isMobilePortrait = window.innerWidth < window.innerHeight;
+            const offsetX = isMobilePortrait ? 1.8 : 2.2;
+            const lookOffsetX = isMobilePortrait ? 0.6 : 1.2;
+            const lookY = isMobilePortrait ? -1.8 : 0.5;
+
+            const desiredCamX = kancilGroup.position.x + offsetX;
+            camera.position.x += (desiredCamX - camera.position.x) * 0.06;
+            camera.lookAt(camera.position.x + lookOffsetX, lookY, 0);
+
+            updateLabels3D();
+            renderer.render(scene, camera);
+        }
+
+        // =============================================================
+        // KONFETI MERIAH UNTUK ENDING STAGE 4
+        // =============================================================
+        function jalankanKonfeti() {
+            const layer = document.getElementById('confettiLayer');
+            layer.innerHTML = '';
+            const warna = ['#facc15', '#22c55e', '#38bdf8', '#f43f5e', '#a855f7', '#fb923c'];
+            for (let i = 0; i < 65; i++) {
+                const p = document.createElement('div');
+                p.className = 'confetti-piece';
+                p.style.left = Math.random() * 100 + 'vw';
+                p.style.background = warna[i % warna.length];
+                p.style.animationDuration = (2.2 + Math.random() * 2.5) + 's';
+                p.style.animationDelay = (Math.random() * 1.2) + 's';
+                layer.appendChild(p);
+            }
+        }
+
+        // =============================================================
+        // LOGIKA KUIS (PILIHAN GANDA & ESAI)
+        // =============================================================
+        async function muatSoal() {
+            const res = await fetch(`/api/stage/${STAGE_AKTIF}`);
+            const data = await res.json();
+            daftarSoal = data.soal;
+            updateHUD();
+            renderSoal();
+        }
+
+        function updateHUD() {
+            document.getElementById('heartsBox').innerText = '❤️'.repeat(nyawa) + '🖤'.repeat(3 - nyawa);
+            document.getElementById('coinDisplay').innerText = totalKoin;
+            document.getElementById('tahapBadge').innerText = `TAHAP ${Math.min(tahapSekarang + 1, TOTAL_TAHAP)} / ${TOTAL_TAHAP}`;
+            document.getElementById('progressFill').style.width = (tahapSekarang / TOTAL_TAHAP) * 100 + '%';
+
+            const btnBeli = document.getElementById('btnBeliHati');
+            if (nyawa >= 3) {
+                btnBeli.classList.add('max-heart');
+            } else {
+                btnBeli.classList.remove('max-heart');
+            }
+        }
+
+        function renderSoal() {
+            const s = daftarSoal[tahapSekarang];
+            document.getElementById('questionText').innerText = s.pertanyaan;
+
+            if (s.tipe === 'pg') {
+                document.getElementById('pgContainer').style.display = 'grid';
+                document.getElementById('esaiContainer').style.display = 'none';
+                document.getElementById('qHint').innerText = 'Klik Buaya 3D atau Pilih Tombol Jawaban:';
+                ['A', 'B', 'C'].forEach((huruf, idx) => {
+                    document.getElementById('btnText' + huruf).innerText = s.opsi[idx];
+                    document.getElementById('lblText' + huruf).innerText = s.opsi[idx];
+                });
+            } else {
+                document.getElementById('pgContainer').style.display = 'none';
+                document.getElementById('esaiContainer').style.display = 'flex';
+                document.getElementById('qHint').innerText = 'Tantangan Esai! Ketik jawabanmu lalu klik Kirim:';
+                const inp = document.getElementById('inputEsai');
+                inp.value = '';
+                inp.focus();
+            }
+        }
+
+        function tampilkanToast(teks, tipe) {
+            const toast = document.getElementById('feedbackToast');
+            toast.innerText = teks;
+            toast.className = `feedback-toast show ${tipe}`;
+            setTimeout(() => toast.classList.remove('show'), 1800);
+        }
+
+        function pilihJawabanPG(idx) {
+            prosesJawaban(idx, idx);
+        }
+
+        function kirimJawabanEsai() {
+            const teks = document.getElementById('inputEsai').value.trim();
+            if (!teks) return;
+            prosesJawaban(teks, 1);
+        }
+
+        async function prosesJawaban(jawabanUser, colTarget) {
+            if (sedangProses || tahapSekarang >= TOTAL_TAHAP) return;
+            sedangProses = true;
+            initAudio();
+
+            const res = await fetch('/api/jawab', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    stage_id: STAGE_AKTIF,
+                    tahap: tahapSekarang,
+                    jawaban: jawabanUser,
+                    streak: streak
+                })
+            });
+            const data = await res.json();
+            const crocTarget = crocRows[tahapSekarang][colTarget];
+
+            if (data.benar) {
+                totalKoin += data.koin_didapat;
+                localStorage.setItem('kancil_koin', totalKoin);
+                streak = data.streak_baru;
+                SoundFX.benar();
+                tampilkanToast(data.pesan, 'toast-ok');
+
+                lompatKancilKe(new THREE.Vector3(crocTarget.position.x, 0.9, crocTarget.position.z));
+                tahapSekarang += 1;
+                updateHUD();
+
+                setTimeout(() => {
+                    if (tahapSekarang >= TOTAL_TAHAP) {
+                        lompatKancilKe(new THREE.Vector3(39.5, 1.3, 0));
+                        setTimeout(tampilkanMenang, 750);
+                    } else {
+                        renderSoal();
+                        sedangProses = false;
+                    }
+                }, 850);
+            } else {
+                nyawa -= 1;
+                streak = 0;
+                SoundFX.salah();
+                crocTarget.userData.shake = 1.0;
+                tampilkanToast(data.pesan, 'toast-err');
+                updateHUD();
+
+                setTimeout(() => {
+                    if (nyawa <= 0) {
+                        SoundFX.kalah();
+                        document.getElementById('modalLose').classList.add('show');
+                    } else {
+                        sedangProses = false;
+                    }
+                }, 1100);
+            }
+        }
+
+        async function tampilkanMenang() {
+            let selesai = JSON.parse(localStorage.getItem('kancil_stage_selesai') || '[]');
+            if (!selesai.includes(STAGE_AKTIF)) selesai.push(STAGE_AKTIF);
+            localStorage.setItem('kancil_stage_selesai', JSON.stringify(selesai));
+
+            let terbuka = parseInt(localStorage.getItem('kancil_stage_terbuka') || '1');
+            if (STAGE_AKTIF >= terbuka && terbuka < 4) {
+                localStorage.setItem('kancil_stage_terbuka', STAGE_AKTIF + 1);
+            }
+
+            await fetch('/api/selesai', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ total_koin: totalKoin })
+            });
+
+            if (STAGE_AKTIF === 4) {
+                SoundFX.finale();
+                document.getElementById('questionPanel').style.display = 'none';
+                document.getElementById('hudBar').style.display = 'none';
+                endingWalk.active = true;
+                jalankanKonfeti();
+
+                setTimeout(() => {
+                    document.getElementById('finaleNama').innerText = namaSiswa;
+                    document.getElementById('finaleKoin').innerText = totalKoin;
+                    document.getElementById('modalFinale').classList.add('show');
+                }, 2800);
+                return;
+            }
+
+            SoundFX.menang();
+            document.getElementById('winNama').innerText = namaSiswa;
+            document.getElementById('winKoin').innerText = totalKoin;
+            document.getElementById('winLangkah').innerText = `${TOTAL_TAHAP} / ${TOTAL_TAHAP}`;
+            document.getElementById('btnNextStage').innerText = `Lanjut Stage ${STAGE_AKTIF + 1} ➡`;
+            document.getElementById('modalWin').classList.add('show');
+        }
+
+        function bukaPause() {
+            document.getElementById('pauseNama').innerText = namaSiswa;
+            document.getElementById('pauseKoin').innerText = totalKoin;
+            document.getElementById('pauseLangkah').innerText = `${tahapSekarang} / ${TOTAL_TAHAP}`;
+            document.getElementById('modalPause').classList.add('show');
+        }
+
+        function tutupPause() {
+            document.getElementById('modalPause').classList.remove('show');
+        }
+
+        window.onload = () => {
+            init3D();
+            muatSoal();
+        };
+    </script>
+</body>
+</html>
